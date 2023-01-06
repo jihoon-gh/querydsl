@@ -522,4 +522,69 @@ public class QuerydslBasicTest {
     private Predicate allEq(String usernameCond, Integer ageCond){
         return usernameEq(usernameCond).and(ageEq(ageCond));
     }
+
+    @Test //jpa는 영속성 컨텍스트에 엔티티를 관리. 벌크 연산은 영속성 컨텍스트를 바꾸지 않고 db에 바로 꽂음 -> 불일치 발생
+    public void bulkUpdate(){
+
+        //member1, member2 가 비회원으로 이름이 변경되어야 함.
+        long count = queryFactory
+                .update(member)
+                .set(member.username, "비회원")
+                .where(member.age.lt(28))
+                .execute();
+
+        em.flush();
+        em.clear();
+
+        List<Member> result = queryFactory.selectFrom(member).fetch();
+
+        for (Member member1 : result) {
+            System.out.println("member1 = " + member1);
+        }
+    }
+    //벌크 연산 이후 em.flush(), em.clear()를 통해 영속성 컨텍스트를 초기화 해줌
+
+    //jpa는 select query로 db의 값을 가져와도, 영속성 컨텍스트의 값을 우선으로 가짐.
+
+    @Test
+    public void bulkAdd(){
+        long count = queryFactory
+                .update(member)
+                .set(member.age, member.age.add(1))
+                .execute();
+
+    }
+
+    @Test
+    public void bulkDelete(){
+        long count = queryFactory
+                .delete(member)
+                .where(member.age.gt(18))
+                .execute();
+    }
+
+    @Test
+    public void sqlFunction(){
+        List<String> result = queryFactory.select(Expressions.stringTemplate("function('replace', {0}, {1}, {2})",
+                        member.username, "member", "M"))
+                .from(member)
+                .fetch();
+
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
+
+    @Test
+    public void sqlFunction2(){
+        List<String> result = queryFactory.select(member.username)
+                .from(member)
+                .where(member.username.eq(
+                       member.username.lower()
+                )).fetch();
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
+
 }
